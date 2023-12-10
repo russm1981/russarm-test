@@ -4,14 +4,14 @@
     "dependencies": {
         "core": "*",
         "radio": "*",
-        "microphone": "*",
-        "pxt-kitronik-simple-servo": "github:kitronikltd/pxt-kitronik-simple-servo#v0.0.7"
+        "microphone": "*"
     },
     "files": [
         "main.blocks",
         "main.ts",
         "README.md",
-        "main.py"
+        "main.py",
+        "dojobot.ts"
     ],
     "testFiles": [
         "test.ts"
@@ -23,5 +23,5 @@
     "supportedTargets": [
         "microbit"
     ],
-    "preferredEditor": "blocksprj"
+    "preferredEditor": "tsprj"
 }

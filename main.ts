@@ -1,11 +1,7 @@
 basic.showIcon(IconNames.Happy)
-basic.forever(function () {
-    kitronik_simple_servo.setServoAngle(kitronik_simple_servo.ServoChoice.servo1, 90)
-    kitronik_simple_servo.setServoAngle(kitronik_simple_servo.ServoChoice.servo2, 90)
-    kitronik_simple_servo.setServoAngle(kitronik_simple_servo.ServoChoice.servo3, 90)
-    basic.pause(100)
-    kitronik_simple_servo.setServoNeutral(kitronik_simple_servo.ServoChoice.servo1)
-    kitronik_simple_servo.setServoNeutral(kitronik_simple_servo.ServoChoice.servo1)
-    kitronik_simple_servo.setServoNeutral(kitronik_simple_servo.ServoChoice.servo1)
-    basic.pause(100)
+basic.forever(function on_forever() {
+    let peeled = false;
+    if (dojobot.pick(TropicalFruit.Banana)) {
+        peeled = dojobot.peel(TropicalFruit.Banana);
+    }
 })
