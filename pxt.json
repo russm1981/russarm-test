@@ -10,7 +10,8 @@
         "README.md",
         "main.py",
         "dojobot.ts",
-        "test.ts"
+        "test.ts",
+        "unused.ts"
     ],
     "testFiles": [],
     "targetVersions": {

@@ -34,397 +34,196 @@ namespace dojobot {
     }
 
     enum LEDColour {
-        LED1R = 1,
-        LED1G = 1,
-        LED1B = 1,
-        LED2R = 1,
-        LED2G = 1,
-        LED2B = 1,
-        LED3R = 1,
-        LED3G = 1,
-        LED3B = 1
+        LED1R = 2,
+        LED1G = 9,
+        LED1B = 8,
+        LED2R = 10,
+        LED2G = 11,
+        LED2B = 12,
+        LED3R = 14,
+        LED3G = 13,
+        LED3B = 15
     }
 
-    //Hardware config
+    //PCA9685 PWM chip hardware config
+    const PWM_ADDRESS = 0x40
+    
+    //PCA9685 PWM chip register locations
+    const PWM_REG_PRESCALE = 0xFE       //the prescale register address
+    const PWM_REG_MODE1 = 0x00          // MODE1
+    const PWM_REG_MODE2 = 0x01          // MODE2
 
-    const CHIP_ADDRESS = 0x40
-    //const MIN_CHIP_ADDRESS = 0x40
-    //const MAX_CHIP_ADDRESS = MIN_CHIP_ADDRESS + 62
-    const chipResolution = 4096;
-    const PrescaleReg = 0xFE //the prescale register address
-    const modeRegister1 = 0x00 // MODE1
-    const modeRegister1Default = 0x01
-    const modeRegister2 = 0x01 // MODE2
-    const modeRegister2Default = 0x04
-    const sleep = modeRegister1Default | 0x10; // Set sleep bit to 1
-    const wake = modeRegister1Default & 0xEF; // Set sleep bit to 0
-    const restart = wake | 0x80; // Set restart bit to 1
-    //const allChannelsOnStepLowByte = 0xFA // ALL_LED_ON_L
-    //const allChannelsOnStepHighByte = 0xFB // ALL_LED_ON_H
-    //const allChannelsOffStepLowByte = 0xFC // ALL_LED_OFF_L
-    //const allChannelsOffStepHighByte = 0xFD // ALL_LED_OFF_H
-    const PinRegDistance = 4
-    //const channel0OnStepLowByte = 0x06 // LED0_ON_L
-    //const channel0OnStepHighByte = 0x07 // LED0_ON_H
-    //const channel0OffStepLowByte = 0x08 // LED0_OFF_L
-    //const channel0OffStepHighByte = 0x09 // LED0_OFF_H
+    const PWM_REG_CH0_ON_L = 0x06       // Channel 0 output and brightness control ON byte 0
+    const PWM_REG_CH0_ON_H = 0x07       // Channel 0 output and brightness control ON byte 1
+    const PWM_REG_CH0_OFF_L = 0x08      // Channel 0 output and brightness control OFF byte 2
+    const PWM_REG_CH0_OFF_H = 0x09      // Channel 0 output and brightness control OFF byte 3
 
-    //Setup Hex Constants
+    const PWM_REG_ALL_ON_L = 0xFA       // All channels output and brightness control ON byte 0
+    const PWM_REG_ALL_ON_H = 0xFB       // All channels output and brightness control ON byte 1
+    const PWM_REG_ALL_OFF_L = 0xFC      // All channels output and brightness control OFF byte 2
+    const PWM_REG_ALL_OFF_H = 0xFD      // All channels output and brightness control OFF byte 3
+    
+    //Default values for chip settings
 
-    const hexChars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
+    /*Mode1
+        Bit7 = restart on
+        Bit6 = ext clk on
+        Bit5 = auto increment on
+        Bit4 = sleep on
+        Bit3 = respond to subaddr1
+        Bit2 = respond to subaddr2
+        Bit1 = respond to subaddr3
+        Bit0 = respond to an all call
+    */
+    const pwm_mode1_default = 0x01
+    const pwm_mode1_sleep = mode1_default | 0x10; // Set sleep bit to 1
+    const pwm_mode1_wake = mode1_default & 0xEF; // Set sleep bit to 0
+    const pwm_mode1_restart = mode1_wake | 0x80; // Set restart bit to 1
 
-    //Add class for servo configuration and the defaults
+    /*Mode2
+        Bit7 to 5 reserved
+        Bit4 = invert output logic
+        Bit3 = change outputs on I2C ACK  (off = change on STOP)
+        Bit2 = set outputs to totem pole (off = open-drain)
+        Bit1 and 0: output behaviour in case of OE pin = 1
+            00: output = 0
+            01: output = 1 when totem pole, or high impedance when open-drain
+            10: output = high-impedance
+    */
+    const pwm_mode2_default = 0x04    //open-drain, change outputs on Ack
 
-    export class ServoConfigObject {
-        id: number;
-        pinNumber: number;
-        minOffset: number;
-        midOffset: number;
-        maxOffset: number;
-        position: number;
-    }
+    /*Prescaler and timing
+        Determines frequencies at which outputs modulate
+        Minimum value is 3
 
-    export const DefaultServoConfig = new ServoConfigObject();
-    DefaultServoConfig.pinNumber = -1
-    DefaultServoConfig.minOffset = 5
-    DefaultServoConfig.midOffset = 15
-    DefaultServoConfig.maxOffset = 25
-    DefaultServoConfig.position = 90
+        prescale = (osc_clock / (4096 * update rate)) - 1
 
-    //Class to configure servos
+        update_rate is the frequency required (200Hz default)
+        servos recommended 40-200hz, but most use 50hz
 
-    export class ServoConfig {
-        id: number;
-        pinNumber: number;
-        minOffset: number;
-        midOffset: number;
-        maxOffset: number;
-        position: number;
-        constructor(id: number, config: ServoConfigObject) {
-            this.id = id
-            this.init(config)
-        }
+        internal oscillator is 25mhz
+        therefore 50hz update rate:
+        prescale = 121d = 79h
+        
+    */
+    const pwm_prescale_servo = 0x79   //50hz for servo
+    const pwm_prescale_LED = 0x1D     //200hz for LEDs
 
-        init(config: ServoConfigObject) {
-            this.pinNumber = config.pinNumber > -1 ? config.pinNumber : this.id - 1
-            this.setOffsetsFromFreq(config.minOffset, config.maxOffset, config.midOffset)
-            this.position = -1
-        }
+    /*Output ON and OFF control registers
 
-        debug() {
-            const params = this.config()
+        Each PWM cycle is 4096 long
+        The ON register sets the count (time) for rising edge to HIGH, to allow stagger to avoid current draw
+        The OFF register sets the count (time) for falling edge to LOW
+        
+        Example
+        We want rising edge delayed to 10% within cycle
+        We want HIGH period to be 20%   (so LOW period is 80%) 
+        10% = 410d counts = 19Ah (in hex).  Reduce by 1 as counter ends at 4095 -> Rising edge @ 199h
+        20% = 819d counts
+        Off time = 410 + 819 - 1 = 1228 -> Falling edge @ 4CCh
+        Set ON_H = 01h, ON_L = 99h, OFF_H = 04h, OFF_L = ChipConfig
+        
+        Notes on delays
+        Should stagger LED start times, but servos can all be at 0
+        Falling edge can occur "before" rising edge if delay is such that it wraps into next cycle
 
-            for (let j = 0; j < params.length; j = j + 2) {
-                debug(`Servo[${this.id}].${params[j]}: ${params[j + 1]}`)
-            }
-        }
-
-        setOffsetsFromFreq(startFreq: number, stopFreq: number, midFreq: number = -1): void {
-            this.minOffset = startFreq // calcFreqOffset(startFreq)
-            this.maxOffset = stopFreq // calcFreqOffset(stopFreq)
-            this.midOffset = midFreq > -1 ? midFreq : ((stopFreq - startFreq) / 2) + startFreq
-        }
-
-        config(): string[] {
-            return [
-                'id', this.id.toString(),
-                'pinNumber', this.pinNumber.toString(),
-                'minOffset', this.minOffset.toString(),
-                'maxOffset', this.maxOffset.toString(),
-                'position', this.position.toString(),
-            ]
-        }
-    }
-
-    export class ChipConfig {
-        address: number;
-        servos: ServoConfig[];
-        freq: number;
-        constructor(address: number = 0x40, freq: number = 50) {
-            this.address = address
-            this.servos = [
-                new ServoConfig(1, DefaultServoConfig),
-                new ServoConfig(2, DefaultServoConfig),
-                new ServoConfig(3, DefaultServoConfig),
-                new ServoConfig(4, DefaultServoConfig),
-                new ServoConfig(5, DefaultServoConfig),
-                new ServoConfig(6, DefaultServoConfig),
-                new ServoConfig(7, DefaultServoConfig),
-                new ServoConfig(8, DefaultServoConfig),
-                new ServoConfig(9, DefaultServoConfig),
-                new ServoConfig(10, DefaultServoConfig),
-                new ServoConfig(11, DefaultServoConfig),
-                new ServoConfig(12, DefaultServoConfig),
-                new ServoConfig(13, DefaultServoConfig),
-                new ServoConfig(14, DefaultServoConfig),
-                new ServoConfig(15, DefaultServoConfig),
-                new ServoConfig(16, DefaultServoConfig)
-            ]
-            this.freq = freq
-            init(address, freq)
-        }
-    }
-
-    export const chips: ChipConfig[] = []
-
-    function calcFreqPrescaler(freq: number): number {
-        return (25000000 / (freq * chipResolution)) - 1;
-    }
-
-    function write(chipAddress: number, register: number, value: number): void {
+        Exceptions
+        Setting Bit4 in ON_H register to 1 sets the output to permanently ON
+        Setting Bit4 in OFF_H register to 1 sets the output to permanently OFF
+    */
+    //Output always on
+    pwm_output_always_on_l = 0
+    pwm_output_always_on_h = 0x10
+    pwm_output_always_off_l = 0
+    pwm_output_always_off_h = 0
+    //Output always off
+    pwm_output_never_on_l = 0
+    pwm_output_never_on_h = 0
+    pwm_output_never_off_l = 0
+    pwm_output_never_off_h = 0x10
+ 
+    function write(register: number, value: number): void {
         const buffer = pins.createBuffer(2)
         buffer[0] = register
         buffer[1] = value
-        pins.i2cWriteBuffer(chipAddress, buffer, false)
-    }
-
-    export function getChipConfig(address: number): ChipConfig {
-        for (let i = 0; i < chips.length; i++) {
-            if (chips[i].address === address) {
-                debug(`Returning chip ${i}`)
-                return chips[i]
-            }
-        }
-        debug(`Creating new chip for address ${address}`)
-        const chip = new ChipConfig(address)
-        const index = chips.length
-        chips.push(chip)
-        return chips[index]
-    }
-
-    function calcFreqOffset(freq: number, offset: number) {
-        return ((offset * 1000) / (1000 / freq) * chipResolution) / 10000
-    }
-
-    /**
-     * Used to set the pulse range (0-4095) of a given pin on the PCA9685
-     * @param chipAddress [64-125] The I2C address of your PCA9685; eg: 64
-     * @param pinNumber The pin number (0-15) to set the pulse range on
-     * @param onStep The range offset (0-4095) to turn the signal on
-     * @param offStep The range offset (0-4095) to turn the signal off
-     */
-    //% block advanced=true
-    export function setPinPulseRange(pinNumber: PinNum = 0, onStep: number = 0, offStep: number = 2048, chipAddress: number = 0x40): void {
-        pinNumber = Math.max(0, Math.min(15, pinNumber))
-        const buffer = pins.createBuffer(2)
-        const pinOffset = PinRegDistance * pinNumber
-        onStep = Math.max(0, Math.min(4095, onStep))
-        offStep = Math.max(0, Math.min(4095, offStep))
-
-        debug(`setPinPulseRange(${pinNumber}, ${onStep}, ${offStep}, ${chipAddress})`)
-        debug(`  pinOffset ${pinOffset}`)
-
-        // Low byte of onStep
-        write(chipAddress, pinOffset + channel0OnStepLowByte, onStep & 0xFF)
-
-        // High byte of onStep
-        write(chipAddress, pinOffset + channel0OnStepHighByte, (onStep >> 8) & 0x0F)
-
-        // Low byte of offStep
-        write(chipAddress, pinOffset + channel0OffStepLowByte, offStep & 0xFF)
-
-        // High byte of offStep
-        write(chipAddress, pinOffset + channel0OffStepHighByte, (offStep >> 8) & 0x0F)
-    }
-
-    /**
-     * Used to set the duty cycle (0-100) of a given led connected to the PCA9685
-     * @param chipAddress [64-125] The I2C address of your PCA9685; eg: 64
-     * @param ledNumber The number (1-16) of the LED to set the duty cycle on
-     * @param dutyCycle The duty cycle (0-100) to set the LED to
-     */
-    //% block
-    export function setLedDutyCycle(ledNum: LEDNum = 1, dutyCycle: number, chipAddress: number = 0x40): void {
-        ledNum = Math.max(1, Math.min(16, ledNum))
-        dutyCycle = Math.max(0, Math.min(100, dutyCycle))
-        const pwm = (dutyCycle * (chipResolution - 1)) / 100
-        debug(`setLedDutyCycle(${ledNum}, ${dutyCycle}, ${chipAddress})`)
-        return setPinPulseRange(ledNum - 1, 0, pwm, chipAddress)
-    }
-
-    function degrees180ToPWM(freq: number, degrees: number, offsetStart: number, offsetEnd: number): number {
-        // Calculate the offset of the off point in the freq
-        offsetEnd = calcFreqOffset(freq, offsetEnd)
-        offsetStart = calcFreqOffset(freq, offsetStart)
-        const spread: number = offsetEnd - offsetStart
-        const calcOffset: number = ((degrees * spread) / 180) + offsetStart
-        // Clamp it to the bounds
-        return Math.max(offsetStart, Math.min(offsetEnd, calcOffset))
-    }
-
-    /**
-     * Used to move the given servo to the specified degrees (0-180) connected to the PCA9685
-     * @param chipAddress [64-125] The I2C address of your PCA9685; eg: 64
-     * @param servoNum The number (1-16) of the servo to move
-     * @param degrees The degrees (0-180) to move the servo to
-     */
-    //% block
-    export function setServoPosition(servoNum: ServoNum = 1, degrees: number, chipAddress: number = 0x40): void {
-        const chip = getChipConfig(chipAddress)
-        servoNum = Math.max(1, Math.min(16, servoNum))
-        degrees = Math.max(0, Math.min(180, degrees))
-        const servo: ServoConfig = chip.servos[servoNum - 1]
-        const pwm = degrees180ToPWM(chip.freq, degrees, servo.minOffset, servo.maxOffset)
-        servo.position = degrees
-        debug(`setServoPosition(${servoNum}, ${degrees}, ${chipAddress})`)
-        debug(`  servo.pinNumber ${servo.pinNumber}`)
-        debug(`  servo.minOffset ${servo.minOffset}`)
-        debug(`  servo.maxOffset ${servo.maxOffset}`)
-        debug(`  pwm ${pwm}`)
-        servo.debug()
-        return setPinPulseRange(servo.pinNumber, 0, pwm, chipAddress)
-    }
-
-    /**
-     * Used to set the rotation speed of a continous rotation servo from -100% to 100%
-     * @param chipAddress [64-125] The I2C address of your PCA9685; eg: 64
-     * @param servoNum The number (1-16) of the servo to move
-     * @param speed [-100-100] The speed (-100-100) to turn the servo at
-     */
-    //% block
-    export function setCRServoPosition(servoNum: ServoNum = 1, speed: number, chipAddress: number = 0x40): void {
-        debug(`setCRServoPosition(${servoNum}, ${speed}, ${chipAddress})`)
-        const chip = getChipConfig(chipAddress)
-        const freq = chip.freq
-        servoNum = Math.max(1, Math.min(16, servoNum))
-        const servo: ServoConfig = chip.servos[servoNum - 1]
-        const offsetStart = calcFreqOffset(freq, servo.minOffset)
-        const offsetMid = calcFreqOffset(freq, servo.midOffset)
-        const offsetEnd = calcFreqOffset(freq, servo.maxOffset)
-        if (speed === 0) {
-            return setPinPulseRange(servo.pinNumber, 0, offsetMid, chipAddress)
-        }
-        const isReverse: boolean = speed < 0
-        debug(isReverse ? 'Reverse' : 'Forward')
-        const spread = isReverse ? offsetMid - offsetStart : offsetEnd - offsetMid
-        debug(`Spread ${spread}`)
-        servo.position = speed
-        speed = Math.abs(speed)
-        const calcOffset: number = ((speed * spread) / 100)
-        debug(`Offset ${calcOffset}`)
-        debug(`min ${offsetStart}`)
-        debug(`mid ${offsetMid}`)
-        debug(`max ${offsetEnd}`)
-        const pwm = isReverse ? offsetMid - calcOffset : offsetMid + calcOffset
-        debug(`pwm ${pwm}`)
-        return setPinPulseRange(servo.pinNumber, 0, pwm, chipAddress)
-    }
-
-    /**
-     * Used to set the range in centiseconds (milliseconds * 10) for the pulse width to control the connected servo
-     * @param chipAddress [64-125] The I2C address of your PCA9685; eg: 64
-     * @param servoNum The number (1-16) of the servo to move; eg: 1
-     * @param minTimeCs The minimum centiseconds (0-1000) to turn the servo on; eg: 5
-     * @param maxTimeCs The maximum centiseconds (0-1000) to leave the servo on for; eg: 25
-     * @param midTimeCs The mid (90 degree for regular or off position if continuous rotation) for the servo; eg: 15
-     */
-    //% block advanced=true
-    export function setServoLimits(servoNum: ServoNum = 1, minTimeCs: number = 5, maxTimeCs: number = 2.5, midTimeCs: number = -1, chipAddress: number = 0x40): void {
-        const chip = getChipConfig(chipAddress)
-        servoNum = Math.max(1, Math.min(16, servoNum))
-        minTimeCs = Math.max(0, minTimeCs)
-        maxTimeCs = Math.max(0, maxTimeCs)
-        debug(`setServoLimits(${servoNum}, ${minTimeCs}, ${maxTimeCs}, ${chipAddress})`)
-        const servo: ServoConfig = chip.servos[servoNum - 1]
-        midTimeCs = midTimeCs > -1 ? midTimeCs : ((maxTimeCs - minTimeCs) / 2) + minTimeCs
-        debug(`midTimeCs ${midTimeCs}`)
-        return servo.setOffsetsFromFreq(minTimeCs, maxTimeCs, midTimeCs)
-    }
-
-    /**
-     * Used to setup the chip, will cause the chip to do a full reset and turn off all outputs.
-     * @param chipAddress [64-125] The I2C address of your PCA9685; eg: 64
-     * @param freq [40-1000] Frequency (40-1000) in hertz to run the clock cycle at; eg: 50
-     */
-    //% block advanced=true
-    export function init(chipAddress: number = 0x40, newFreq: number = 50) {
-        debug(`Init chip at address ${chipAddress} to ${newFreq}Hz`)
-        const buf = pins.createBuffer(2)
-        const freq = (newFreq > 1000 ? 1000 : (newFreq < 40 ? 40 : newFreq))
-        const prescaler = calcFreqPrescaler(freq)
-
-        write(chipAddress, modeRegister1, sleep)
-
-        write(chipAddress, PrescaleReg, prescaler)
-
-        write(chipAddress, allChannelsOnStepLowByte, 0x00)
-        write(chipAddress, allChannelsOnStepHighByte, 0x00)
-        write(chipAddress, allChannelsOffStepLowByte, 0x00)
-        write(chipAddress, allChannelsOffStepHighByte, 0x00)
-
-        write(chipAddress, modeRegister1, wake)
-
-        control.waitMicros(1000)
-        write(chipAddress, modeRegister1, restart)
-    }
-
-    /**
-     * Used to reset the chip, will cause the chip to do a full reset and turn off all outputs.
-     * @param chipAddress [64-125] The I2C address of your PCA9685; eg: 64
-     */
-    //% block
-    export function reset(chipAddress: number = 0x40): void {
-        return init(chipAddress, getChipConfig(chipAddress).freq);
-    }
-
-    /**
-     * Used to reset the chip, will cause the chip to do a full reset and turn off all outputs.
-     * @param hexAddress The hex address to convert to decimal; eg: 0x40
-     */
-    //% block
-    export function chipAddress(hexAddress: string): number {
-        hexAddress = stripHexPrefix(hexAddress)
-        let dec = 0
-        let lastidx = 0
-        let lastchar = 0
-        const l = Math.min(2, hexAddress.length)
-        for (let i = 0; i < l; i++) {
-            const char = hexAddress.charAt(i)
-            const idx = hexChars.indexOf(char)
-            const pos = l - i - 1
-            lastidx = pos
-            dec = dec + (idx * Math.pow(16, pos))
-        }
-        return dec
-    }
+        pins.i2cWriteBuffer(PWM_ADDRESS, buffer, false)
+    } 
 
     export function setDebug(debugEnabled: boolean): void {
         _DEBUG = debugEnabled
     }
 
-    //RUSS SPECIFIC CODE
+    //DOJO:BOT SPECIFIC CODE
 
     /**
     * Initialise servos on DojoBot (and centre)
-    * @param n describe parameter here, eg: 5
-    * @param s describe parameter here, eg: "Hello"
-    * @param e describe parameter here
+    * No parameters, uses default values
     */
     //% block
-    export function servo_init(): void {
-        // Add code here
+    export function bot_init(): void {
+        debug(`Init chip at address 0x40, 50Hz update rate`)
+        const buf = pins.createBuffer(2)
+        
+        write(PWM_REG_MODE1, pwm_mode1_sleep)
+
+        write(PWM_REG_PRESCALE, pwm_prescale_servo)
+
+        //Set all outputs to zero
+        write(PWM_REG_ALL_ON_L, 0x00)
+        write(PWM_REG_ALL_ON_H, 0x00)
+        write(PWM_REG_ALL_OFF_L, 0x00)
+        write(PWM_REG_ALL_OFF_H, 0x00)
+
+        write(PWM_REG_MODE1, mode1_wake)
+
+        //1000us (1ms) delay (allows oscillator to stabilise, min 500us)
+        control.waitMicros(1000)
+        write(PWM_REG_MODE1, mode1_restart)
     }
     
     /**
     * Set a servo on DojoBot to a value
     * @param n describe parameter here, eg: 5
     * @param s describe parameter here, eg: "Hello"
-    * @param e describe parameter here
+    * @param e describe pa ameter here
     */
     //% block
-    export function servo_set(id: number, value: number): void {
-        // Add code here
-    }
+    export function bot_servo(ser_id: number, degrees: number): void {
+        // Setup for standard, 180degree servo
+        // Generate a pulse between 1ms and 2ms with 1.5ms being 90 degrees
+        // 0 degrees = 1ms, 180 degrees = 2ms
 
-    /**
-    * Centre a servo on DojoBot 
-    * @param n describe parameter here, eg: 5
-    * @param s describe parameter here, eg: "Hello"
-    * @param e describe parameter here
-    */
-    //% block
-    export function servo_centre(id: number): void {
-        // Add code here
+        //Rising edge always at 0
+        on_time = 0
+        //Check position within bounds
+        degrees = Math.max(0, Math.min(180, degrees))
+        //Falling edge at 1ms to 2ms
+        //50Hz, so 20ms is one set of 4095 counts
+        //1ms = 4095 / 20 -> equivalent to 180 degrees 
+        //1 degree = 4095 / (20 * 180) = 4095 / 3600      
+        off_time = ((position * 4095) / 3600) + 205     //205 adds 1ms at end
+        //Write that to appropriate servo based on id
+        ser_id = Math.max(0, Math.min(180, ser_id))
+        
+        const buffer = pins.createBuffer(2)
+        const pinOffset = 4 * ser_id
+        on_time = Math.max(0, Math.min(4095, on_time))
+        off_time = Math.max(0, Math.min(4095, off_time))
+
+        debug(`setServo(${pinNumber}, ${on_time}, ${off_time}, 0x40)`)
+        debug(`  pinOffset ${pinOffset}`)
+
+        // Low byte of onStep
+        write(pinOffset + PWM_REG_CH0_ON_L, on_time & 0xFF)
+
+        // High byte of onStep
+        write(pinOffset + PWM_REG_CH0_ON_H, (on_time >> 8) & 0x0F)
+
+        // Low byte of offStep
+        write(pinOffset + PWM_REG_CH0_OFF_L, off_time & 0xFF)
+
+        // High byte of offStep
+        write(pinOffset + PWM_REG_CH0_OFF_H, (off_time >> 8) & 0x0F)
     }
 
     /**
@@ -432,8 +231,122 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function led_rgb(led: number, red: number, green: number, blue: number): void {
-        // Add code
+    export function bot_led(led_num: number, red: number, green: number, blue: number): void {
+        // If colour is set, then control it 
+        // If colour is 0 then turn it Off
+        // If colour is -1 then ignore it
+        // Set LED ID to start with
+        switch(led_num) {
+            case 1:
+                red_num = LED1R
+                grn_num = LED1G
+                blu_num = LED1B
+                break
+            case 2:
+                red_num = LED2R
+                grn_num = LED2G
+                blu_num = LED2B
+                break
+            case 3:
+                red_num = LED3R
+                grn_num = LED3G
+                blu_num = LED3B
+                break
+            default:
+                debug(`bot_led - invalid LED value`)
+                return
+        }
+        //Calculate PWM value
+        //colour is a value from 0 to 255
+        pinOffset = 4 * red_num
+        switch(red) {
+            case -1:
+                //Don't do anything for RED
+                break
+            case 0:
+                //Turn RED off
+                write(pinOffset + PWM_REG_CH0_ON_L, pwm_output_never_on_l)
+                write(pinOffset + PWM_REG_CH0_ON_H, pwm_output_never_on_h)
+                write(pinOffset + PWM_REG_CH0_OFF_L, pwm_output_never_off_l)
+                write(pinOffset + PWM_REG_CH0_OFF_H, pwm_output_never_off_h)
+                break
+            case 255:
+                //Turn RED fully on
+                write(pinOffset + PWM_REG_CH0_ON_L, pwm_output_always_on_l)
+                write(pinOffset + PWM_REG_CH0_ON_H, pwm_output_always_on_h)
+                write(pinOffset + PWM_REG_CH0_OFF_L, pwm_output_always_off_l)
+                write(pinOffset + PWM_REG_CH0_OFF_H, pwm_output_always_off_h)
+                break
+            default:
+                //Set RED value
+                red = Math.max(0, Math.min(255, red))
+                red_val_on = 0
+                red_val_off = (red * 4095) / 255
+                write(pinOffset + PWM_REG_CH0_ON_L, 0)
+                write(pinOffset + PWM_REG_CH0_ON_H, 0)
+                write(pinOffset + PWM_REG_CH0_OFF_L, red_val_off & 0xFF)
+                write(pinOffset + PWM_REG_CH0_OFF_H, (red_val_off >> 8) & 0x0F)
+        }
+        
+        pinOffset = 4 * grn_num
+        switch (green) {
+            case -1:
+                //Don't do anything for GRN
+                break
+            case 0:
+                //Turn GRN off
+                write(pinOffset + PWM_REG_CH0_ON_L, pwm_output_never_on_l)
+                write(pinOffset + PWM_REG_CH0_ON_H, pwm_output_never_on_h)
+                write(pinOffset + PWM_REG_CH0_OFF_L, pwm_output_never_off_l)
+                write(pinOffset + PWM_REG_CH0_OFF_H, pwm_output_never_off_h)
+                break
+            case 255:
+                //Turn GRN fully on
+                write(pinOffset + PWM_REG_CH0_ON_L, pwm_output_always_on_l)
+                write(pinOffset + PWM_REG_CH0_ON_H, pwm_output_always_on_h)
+                write(pinOffset + PWM_REG_CH0_OFF_L, pwm_output_always_off_l)
+                write(pinOffset + PWM_REG_CH0_OFF_H, pwm_output_always_off_h)
+                break
+            default:
+                //Set GRN value
+                green = Math.max(0, Math.min(255, green))
+                grn_val_on = 0
+                grn_val_off = (green * 4095) / 255
+                write(pinOffset + PWM_REG_CH0_ON_L, 0)
+                write(pinOffset + PWM_REG_CH0_ON_H, 0)
+                write(pinOffset + PWM_REG_CH0_OFF_L, grn_val_off & 0xFF)
+                write(pinOffset + PWM_REG_CH0_OFF_H, (grn_val_off >> 8) & 0x0F)
+        }
+
+        pinOffset = 4 * blu_num
+        switch (blue) {
+            case -1:
+                //Don't do anything for BLUE
+                break
+            case 0:
+                //Turn BLUE off
+                write(pinOffset + PWM_REG_CH0_ON_L, pwm_output_never_on_l)
+                write(pinOffset + PWM_REG_CH0_ON_H, pwm_output_never_on_h)
+                write(pinOffset + PWM_REG_CH0_OFF_L, pwm_output_never_off_l)
+                write(pinOffset + PWM_REG_CH0_OFF_H, pwm_output_never_off_h)
+                break
+            case 255:
+                //Turn BLUE fully on
+                write(pinOffset + PWM_REG_CH0_ON_L, pwm_output_always_on_l)
+                write(pinOffset + PWM_REG_CH0_ON_H, pwm_output_always_on_h)
+                write(pinOffset + PWM_REG_CH0_OFF_L, pwm_output_always_off_l)
+                write(pinOffset + PWM_REG_CH0_OFF_H, pwm_output_always_off_h)
+                break
+            default:
+                //Set BLUE value
+                blue = Math.max(0, Math.min(255, blue))
+                blu_val_on = 0
+                blu_val_off = (blue * 4095) / 255
+                write(pinOffset + PWM_REG_CH0_ON_L, 0)
+                write(pinOffset + PWM_REG_CH0_ON_H, 0)
+                write(pinOffset + PWM_REG_CH0_OFF_L, blu_val_off & 0xFF)
+                write(pinOffset + PWM_REG_CH0_OFF_H, (blu_val_off >> 8) & 0x0F)
+        }
     }
 
     /**
@@ -441,43 +354,23 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function led_colour(led: number, colour: number): void {
-        // Add code
+    export function bot_led_colour(led_num: number, colour: number): void {
+        // Call bot_led and pass individual colours
+        // colour = 0xRRGGBB in hex
+        red = (colour >> 16) & 0xFF
+        green = (colour >> 8) & 0xFF
+        blue = colour & 0xFF
+        bot_led(led_num, red, green, blue)
     }
 
+    
+
     /**
-    * Control the LEDs on DojoBot, with individual RGB values
+    * Control the relay (for electromagnet)
     * @param value describe value here, eg: 5
     */
     //% block
-    export function led_on(led: number): void {
-        // Add code
-    }
-
-    /**
-    * Control the LEDs on DojoBot, with single colour
-    * @param value describe value here, eg: 5
-    */
-    //% block
-    export function led_off(led: number): void {
-        // Add code
-    }
-
-    /**
-    * Turn the electromagnet on
-    * @param value describe value here, eg: 5
-    */
-    //% block
-    export function mag_on(led: number): void {
-        // Add code
-    }
-
-    /**
-    * Turn the electromagnet off
-    * @param value describe value here, eg: 5
-    */
-    //% block
-    export function mag_off(led: number): void {
+    export function bot_relay(value: number): void {
         // Add code
     }
 
@@ -486,7 +379,7 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function input_read(id: number): number {
+    export function bot_input(id: number): number {
         // Add code
         return 0
     }
@@ -496,7 +389,7 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function time_read(): string {
+    export function bot_gettime(): string {
         // Add code
         return "Empty"
     }
@@ -506,9 +399,9 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function time_set(year: number, month: number, day: number, hour: number, minute: number, second: number): string {
+    export function bot_settime(year: number, month: number, day: number, hour: number, minute: number, second: number): void {
         // Add code
-        return "Empty"
+        
     }
 
     /**
@@ -516,7 +409,7 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function read_ver(): number {
+    export function bot_version(): number {
         // Add code
         return 1
     }
@@ -526,7 +419,7 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function status_set(value: number): {
+    export function bot_status(value: number): void {
         // Add code
         
     }
@@ -536,7 +429,7 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function buttons_read(): number {
+    export function bot_buttons(): number {
         // Add code
         return 0
     }
