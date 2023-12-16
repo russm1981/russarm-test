@@ -19,6 +19,12 @@ namespace dojobot {
 
     //Configure user constants to match hardware
 
+    export class buttons {
+        A: number;
+        B: number;
+        C: number;
+    }
+    
     export enum LED_ID {
         LED1 = 1,
         LED2 = 2,
@@ -132,15 +138,15 @@ namespace dojobot {
         Setting Bit4 in OFF_H register to 1 sets the output to permanently OFF
     */
     //Output always on
-    pwm_output_always_on_l = 0
-    pwm_output_always_on_h = 0x10
-    pwm_output_always_off_l = 0
-    pwm_output_always_off_h = 0
+    const pwm_output_always_on_l = 0
+    const pwm_output_always_on_h = 0x10
+    const wm_output_always_off_l = 0
+    const pwm_output_always_off_h = 0
     //Output always off
-    pwm_output_never_on_l = 0
-    pwm_output_never_on_h = 0
-    pwm_output_never_off_l = 0
-    pwm_output_never_off_h = 0x10
+    const pwm_output_never_on_l = 0
+    const pwm_output_never_on_h = 0
+    const pwm_output_never_off_l = 0
+    const pwm_output_never_off_h = 0x10
  
     function write(register: number, value: number): void {
         const buffer = pins.createBuffer(2)
@@ -371,7 +377,14 @@ namespace dojobot {
     */
     //% block
     export function bot_relay(value: number): void {
-        // Add code
+        // Control the GPIO for the relay (P9)
+        if (value == 1) {
+            pins.digitalWritePin(DigitalPin.P9, 1)    
+        }
+        else
+        {
+            pins.digitalWritePin(DigitalPin.P9, 0)
+        }
     }
 
     /**
@@ -380,7 +393,8 @@ namespace dojobot {
     */
     //% block
     export function bot_input(id: number): number {
-        // Add code
+        // Read the ADC inputs and return
+        
         return 0
     }
 
@@ -390,7 +404,7 @@ namespace dojobot {
     */
     //% block
     export function bot_gettime(): string {
-        // Add code
+        // Return time from RTC (real time clock)
         return "Empty"
     }
 
@@ -400,7 +414,7 @@ namespace dojobot {
     */
     //% block
     export function bot_settime(year: number, month: number, day: number, hour: number, minute: number, second: number): void {
-        // Add code
+        // Set time on RTC
         
     }
 
@@ -410,7 +424,7 @@ namespace dojobot {
     */
     //% block
     export function bot_version(): number {
-        // Add code
+        // Use ADC to read version then return a processed value
         return 1
     }
 
@@ -420,8 +434,13 @@ namespace dojobot {
     */
     //% block
     export function bot_status(value: number): void {
-        // Add code
-        
+        // Control the GPIO for the status LED P16
+        if (value == 1) {
+            pins.digitalWritePin(DigitalPin.P16, 1)
+        }
+        else {
+            pins.digitalWritePin(DigitalPin.P16, 0)
+        }
     }
 
     /**
@@ -429,8 +448,12 @@ namespace dojobot {
     * @param value describe value here, eg: 5
     */
     //% block
-    export function bot_buttons(): number {
-        // Add code
-        return 0
+    export function bot_buttons(): buttons {
+        // Read GPIO for the buttons A P5, B P11, C P8
+        let button_values = new buttons()
+        button_values.A = pins.digitalReadPin(DigitalPin.P5)
+        button_values.B = pins.digitalReadPin(DigitalPin.P11)
+        button_values.C = pins.digitalReadPin(DigitalPin.P8)
+        return button_values
     }
 }
