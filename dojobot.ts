@@ -7,7 +7,8 @@ DojoBot Functions
 /**
 * Custom blocks
 */
-//% block="DojoBot" weight=100 color=#0fbc11 icon=""
+//% block="DojoBot" weight=100 color=#0fbc11 icon="f544"
+//% groups=['Setup', 'LEDs', 'Motors', 'Inputs']
 namespace dojobot {
 
     let _DEBUG: boolean = false
@@ -51,6 +52,48 @@ namespace dojobot {
         LED3B = 15
     }
 
+    const LED1R = 2
+    const LED1G = 9
+    const LED1B = 8
+    const LED2R = 10
+    const LED2G = 11
+    const LED2B = 12
+    const LED3R = 14
+    const LED3G = 13
+    const LED3B = 15
+
+    enum ADC_CH {
+        ADC_CH_LEFTJOY_Y = 0,
+        ADC_CH_LEFTJOY_X = 1,
+        ADC_CH_SLIDE = 2,
+        ADC_CH_EXPANS = 3,
+        ADC_CH_RIGHTJOY_Y = 4,
+        ADC_CH_RIGHTJOY_X = 5,
+        ADC_CH_KNOB = 6,
+        ADC_CH_VERSION = 7
+    }
+    const ADC_CH_LEFTJOY_Y = 0
+    const ADC_CH_LEFTJOY_X = 1
+    const ADC_CH_SLIDE = 2
+    const ADC_CH_EXPANS = 3
+    const ADC_CH_RIGHTJOY_Y = 4
+    const ADC_CH_RIGHTJOY_X = 5
+    const ADC_CH_KNOB = 6
+    const ADC_CH_VERSION = 7
+
+    //ADC channel commands, 4LSB set so internal reference is ON and A to D is ON
+    const ADC_REG_CH_LEFTJOY_Y = 0x8C
+    const ADC_REG_CH_LEFTJOY_X = 0xCC
+    const ADC_REG_CH_SLIDE = 0x9C
+    const ADC_REG_CH_EXPANS = 0xDC
+    const ADC_REG_CH_RIGHTJOY_Y = 0xAC
+    const ADC_REG_CH_RIGHTJOY_X = 0xEC
+    const ADC_REG_CH_KNOB = 0xBC
+    const ADC_REG_CH_VERSION = 0xFC
+
+    //const ADC_ADDR = 0x90
+    const ADC_ADDR = 0x90
+
     //PCA9685 PWM chip hardware config
     const PWM_ADDRESS = 0x40
     
@@ -82,9 +125,9 @@ namespace dojobot {
         Bit0 = respond to an all call
     */
     const pwm_mode1_default = 0x01
-    const pwm_mode1_sleep = mode1_default | 0x10; // Set sleep bit to 1
-    const pwm_mode1_wake = mode1_default & 0xEF; // Set sleep bit to 0
-    const pwm_mode1_restart = mode1_wake | 0x80; // Set restart bit to 1
+    const pwm_mode1_sleep = pwm_mode1_default | 0x10; // Set sleep bit to 1
+    const pwm_mode1_wake = pwm_mode1_default & 0xEF; // Set sleep bit to 0
+    const pwm_mode1_restart = pwm_mode1_wake | 0x80; // Set restart bit to 1
 
     /*Mode2
         Bit7 to 5 reserved
@@ -140,7 +183,7 @@ namespace dojobot {
     //Output always on
     const pwm_output_always_on_l = 0
     const pwm_output_always_on_h = 0x10
-    const wm_output_always_off_l = 0
+    const pwm_output_always_off_l = 0
     const pwm_output_always_off_h = 0
     //Output always off
     const pwm_output_never_on_l = 0
@@ -162,10 +205,10 @@ namespace dojobot {
     //DOJO:BOT SPECIFIC CODE
 
     /**
-    * Initialise servos on DojoBot (and centre)
+    * Initialise the dojo:bot and centre servos.  
     * No parameters, uses default values
     */
-    //% block
+    //% block="Initialise the dojo:bot"
     export function bot_init(): void {
         debug(`Init chip at address 0x40, 50Hz update rate`)
         const buf = pins.createBuffer(2)
@@ -180,24 +223,30 @@ namespace dojobot {
         write(PWM_REG_ALL_OFF_L, 0x00)
         write(PWM_REG_ALL_OFF_H, 0x00)
 
-        write(PWM_REG_MODE1, mode1_wake)
+        write(PWM_REG_MODE1, pwm_mode1_wake)
 
         //1000us (1ms) delay (allows oscillator to stabilise, min 500us)
         control.waitMicros(1000)
-        write(PWM_REG_MODE1, mode1_restart)
+        write(PWM_REG_MODE1, pwm_mode1_restart)
+
+        //Initiate and setup analog to digital converter (ADC) chip
     }
     
     /**
-    * Set a servo on DojoBot to a value
-    * @param n describe parameter here, eg: 5
-    * @param s describe parameter here, eg: "Hello"
-    * @param e describe pa ameter here
+    * Move a servo to a position
+    * @param ser_id the servo ID, selected from list
+    * @param degrees for chosen position (90 = centre)
     */
-    //% block
+    //% block="Move servo $ser_id to position $degrees"
+    //% ser_id.min = 0
+    //% ser_id.max = 15
+    //% ser_id.defl = 0
     export function bot_servo(ser_id: number, degrees: number): void {
         // Setup for standard, 180degree servo
         // Generate a pulse between 1ms and 2ms with 1.5ms being 90 degrees
         // 0 degrees = 1ms, 180 degrees = 2ms
+        let on_time: number
+        let off_time: number
 
         //Rising edge always at 0
         on_time = 0
@@ -207,7 +256,7 @@ namespace dojobot {
         //50Hz, so 20ms is one set of 4095 counts
         //1ms = 4095 / 20 -> equivalent to 180 degrees 
         //1 degree = 4095 / (20 * 180) = 4095 / 3600      
-        off_time = ((position * 4095) / 3600) + 205     //205 adds 1ms at end
+        off_time = ((degrees * 4095) / 3600) + 205     //205 adds 1ms at end
         //Write that to appropriate servo based on id
         ser_id = Math.max(0, Math.min(180, ser_id))
         
@@ -216,7 +265,7 @@ namespace dojobot {
         on_time = Math.max(0, Math.min(4095, on_time))
         off_time = Math.max(0, Math.min(4095, off_time))
 
-        debug(`setServo(${pinNumber}, ${on_time}, ${off_time}, 0x40)`)
+        debug(`setServo(${ser_id}, ${on_time}, ${off_time}, 0x40)`)
         debug(`  pinOffset ${pinOffset}`)
 
         // Low byte of onStep
@@ -234,10 +283,23 @@ namespace dojobot {
 
     /**
     * Control the LEDs on DojoBot, with individual RGB values
-    * @param value describe value here, eg: 5
+    * @param led_num is the number of the LED
+    * @param red sets the red value from 0 to 255
+    * @param green sets the green value from 0 to 255
+    * @param blue sets the blue value from 0 to 255
     */
-    //% block
+    //% blockID = "device_bot_led"  block="Set LED $led_num to red $red, green $green, blue $blue"
+    //% led_num.min = 1  led_num.max = 3  led_num.fieldOptions.precision = 1
+    //% red.min = 1  red.max = 3  red.fieldOptions.precision = 1
+    //% green.min = 1  green.max = 3  green.fieldOptions.precision = 1
+    //% blue.min = 1  blue.max = 3  blue.fieldOptions.precision = 1
     export function bot_led(led_num: number, red: number, green: number, blue: number): void {
+
+        let red_num: number
+        let grn_num: number
+        let blu_num: number
+        let pinOffset: number
+
         // If colour is set, then control it 
         // If colour is 0 then turn it Off
         // If colour is -1 then ignore it
@@ -286,8 +348,8 @@ namespace dojobot {
             default:
                 //Set RED value
                 red = Math.max(0, Math.min(255, red))
-                red_val_on = 0
-                red_val_off = (red * 4095) / 255
+                let red_val_on = 0
+                let red_val_off = (red * 4095) / 255
                 write(pinOffset + PWM_REG_CH0_ON_L, 0)
                 write(pinOffset + PWM_REG_CH0_ON_H, 0)
                 write(pinOffset + PWM_REG_CH0_OFF_L, red_val_off & 0xFF)
@@ -316,8 +378,8 @@ namespace dojobot {
             default:
                 //Set GRN value
                 green = Math.max(0, Math.min(255, green))
-                grn_val_on = 0
-                grn_val_off = (green * 4095) / 255
+                let grn_val_on = 0
+                let grn_val_off = (green * 4095) / 255
                 write(pinOffset + PWM_REG_CH0_ON_L, 0)
                 write(pinOffset + PWM_REG_CH0_ON_H, 0)
                 write(pinOffset + PWM_REG_CH0_OFF_L, grn_val_off & 0xFF)
@@ -346,8 +408,8 @@ namespace dojobot {
             default:
                 //Set BLUE value
                 blue = Math.max(0, Math.min(255, blue))
-                blu_val_on = 0
-                blu_val_off = (blue * 4095) / 255
+                let blu_val_on = 0
+                let blu_val_off = (blue * 4095) / 255
                 write(pinOffset + PWM_REG_CH0_ON_L, 0)
                 write(pinOffset + PWM_REG_CH0_ON_H, 0)
                 write(pinOffset + PWM_REG_CH0_OFF_L, blu_val_off & 0xFF)
@@ -356,16 +418,17 @@ namespace dojobot {
     }
 
     /**
-    * Control the LEDs on DojoBot, with single colour
-    * @param value describe value here, eg: 5
+    * Set LED to an RGB colour
+    * @param led_num is the LED number selected
+    * @param colour is the RGB colour in format 0xRRGGBB
     */
-    //% block
+    //% block="Set LED $led_num to colour $colour"
     export function bot_led_colour(led_num: number, colour: number): void {
         // Call bot_led and pass individual colours
         // colour = 0xRRGGBB in hex
-        red = (colour >> 16) & 0xFF
-        green = (colour >> 8) & 0xFF
-        blue = colour & 0xFF
+        let red = (colour >> 16) & 0xFF
+        let green = (colour >> 8) & 0xFF
+        let blue = colour & 0xFF
         bot_led(led_num, red, green, blue)
     }
 
@@ -389,13 +452,47 @@ namespace dojobot {
 
     /**
     * Read joystick, slider or control knob value
-    * @param value describe value here, eg: 5
+    * @param id is the ADC Channel
+    * returns value 0 to 4096 (12 bit)
     */
     //% block
     export function bot_input(id: number): number {
         // Read the ADC inputs and return
-        
-        return 0
+        //Ask for an ADC read
+        let readcmd
+        switch (id) {
+            case ADC_CH_LEFTJOY_Y:
+                readcmd = ADC_REG_CH_LEFTJOY_Y
+                break
+            case ADC_CH_LEFTJOY_X:
+                readcmd = ADC_REG_CH_LEFTJOY_X
+                break
+            case ADC_CH_SLIDE:
+                readcmd = ADC_REG_CH_SLIDE
+                break
+            case ADC_CH_EXPANS:
+                readcmd = ADC_REG_CH_EXPANS
+                break
+            case ADC_CH_RIGHTJOY_Y:
+                readcmd = ADC_REG_CH_RIGHTJOY_Y
+                break
+            case ADC_CH_RIGHTJOY_X:
+                readcmd = ADC_REG_CH_RIGHTJOY_X
+                break
+            case ADC_CH_KNOB:
+                readcmd = ADC_REG_CH_KNOB
+                break
+            case ADC_CH_VERSION:
+                readcmd = ADC_REG_CH_VERSION
+                break
+            default:
+                //Quit function and return an error
+                return -1
+        }
+        pins.i2cWriteNumber(ADC_ADDR, readcmd, NumberFormat.UInt8LE, false)
+        //Now read back in the value
+        let ADCRead = pins.i2cReadNumber(ADC_ADDR, NumberFormat.UInt16BE, false)
+        return ADCRead
     }
 
     /**

@@ -1,17 +1,13 @@
 {
-    "name": "dojobot",
+    "name": "dojobot-block",
     "description": "",
     "dependencies": {
         "core": "*"
     },
     "files": [
-        "main.blocks",
-        "main.ts",
         "README.md",
-        "main.py",
         "dojobot.ts",
-        "test.ts",
-        "unused.ts"
+        "test.ts"
     ],
     "testFiles": [],
     "targetVersions": {
