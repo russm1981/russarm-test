@@ -11,7 +11,7 @@ DojoBot Functions
 //% groups=['Setup', 'LEDs', 'Motors', 'Inputs']
 namespace dojobot {
 
-    let _DEBUG: boolean = false
+    let _DEBUG: boolean = true
     const debug = (msg: string) => {
         if (_DEBUG === true) {
             serial.writeLine(msg)
@@ -19,7 +19,6 @@ namespace dojobot {
     }
 
     //Configure user constants to match hardware
-
     export class buttons {
         A: number;
         B: number;
@@ -91,11 +90,11 @@ namespace dojobot {
     const ADC_REG_CH_KNOB = 0xBC
     const ADC_REG_CH_VERSION = 0xFC
 
-    //const ADC_ADDR = 0x90
-    const ADC_ADDR = 0x90
+    //ADC7828 Analog to Digital Chip Address
+    const ADC_ADDR = 0x48               //This is 7bit address (in 8bit format it is 0x90)
 
     //PCA9685 PWM chip hardware config
-    const PWM_ADDRESS = 0x40
+    const PWM_ADDRESS = 0x40            //This is 7bit address (in 8bit format it is 0x80)
     
     //PCA9685 PWM chip register locations
     const PWM_REG_PRESCALE = 0xFE       //the prescale register address
@@ -254,7 +253,7 @@ namespace dojobot {
         degrees = Math.max(0, Math.min(180, degrees))
         //Falling edge at 1ms to 2ms
         //50Hz, so 20ms is one set of 4095 counts
-        //1ms = 4095 / 20 -> equivalent to 180 degrees 
+        //1ms = 4095 / 20 = 204.75 -> equivalent to 180 degrees 
         //1 degree = 4095 / (20 * 180) = 4095 / 3600      
         off_time = ((degrees * 4095) / 3600) + 205     //205 adds 1ms at end
         //Write that to appropriate servo based on id
@@ -265,8 +264,7 @@ namespace dojobot {
         on_time = Math.max(0, Math.min(4095, on_time))
         off_time = Math.max(0, Math.min(4095, off_time))
 
-        debug(`setServo(${ser_id}, ${on_time}, ${off_time}, 0x40)`)
-        debug(`  pinOffset ${pinOffset}`)
+        debug(`setServo(${ser_id}, ${on_time}, ${off_time}, 0x40, pinOffset ${pinOffset})`)
 
         // Low byte of onStep
         write(pinOffset + PWM_REG_CH0_ON_L, on_time & 0xFF)
@@ -443,10 +441,12 @@ namespace dojobot {
         // Control the GPIO for the relay (P9)
         if (value == 1) {
             pins.digitalWritePin(DigitalPin.P9, 1)    
+            debug("R1")
         }
         else
         {
             pins.digitalWritePin(DigitalPin.P9, 0)
+            debug("R0")
         }
     }
 
@@ -463,35 +463,48 @@ namespace dojobot {
         switch (id) {
             case ADC_CH_LEFTJOY_Y:
                 readcmd = ADC_REG_CH_LEFTJOY_Y
+                debug("LEFTY")
                 break
             case ADC_CH_LEFTJOY_X:
                 readcmd = ADC_REG_CH_LEFTJOY_X
+                debug("LEFTX")
                 break
             case ADC_CH_SLIDE:
                 readcmd = ADC_REG_CH_SLIDE
+                debug("SLIDE")
                 break
             case ADC_CH_EXPANS:
                 readcmd = ADC_REG_CH_EXPANS
+                debug("EXPANS")
                 break
             case ADC_CH_RIGHTJOY_Y:
                 readcmd = ADC_REG_CH_RIGHTJOY_Y
+                debug("RIGHTY")
                 break
             case ADC_CH_RIGHTJOY_X:
                 readcmd = ADC_REG_CH_RIGHTJOY_X
+                debug("RIGHTX")
                 break
             case ADC_CH_KNOB:
                 readcmd = ADC_REG_CH_KNOB
+                debug("KNOB")
                 break
             case ADC_CH_VERSION:
                 readcmd = ADC_REG_CH_VERSION
+                debug("VERSION")
                 break
             default:
                 //Quit function and return an error
                 return -1
         }
+
+        //write(ADC_ADDR, readcmd)
         pins.i2cWriteNumber(ADC_ADDR, readcmd, NumberFormat.UInt8LE, false)
+        debug(`I2C WRITE, ${ADC_ADDR}, ${readcmd}`)
         //Now read back in the value
         let ADCRead = pins.i2cReadNumber(ADC_ADDR, NumberFormat.UInt16BE, false)
+        debug((`I2C READ ${ADC_ADDR} = ${ADCRead}`)
+
         return ADCRead
     }
 

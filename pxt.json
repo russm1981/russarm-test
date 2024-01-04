@@ -2,7 +2,8 @@
     "name": "dojobot-block",
     "description": "",
     "dependencies": {
-        "core": "*"
+        "core": "*",
+        "iBIT": "github:emwta/pxt-ibit#v4.0.10"
     },
     "files": [
         "README.md",
