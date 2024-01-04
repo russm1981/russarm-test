@@ -62,31 +62,31 @@ namespace dojobot {
     const LED3B = 15
 
     enum ADC_CH {
-        ADC_CH_LEFTJOY_Y = 0,
-        ADC_CH_LEFTJOY_X = 1,
+        ADC_CH_LEFTJOY_Y = 1,    //mismatch to v1 PCB label
+        ADC_CH_LEFTJOY_X = 0,    //mismatch to v1 PCB label
         ADC_CH_SLIDE = 2,
         ADC_CH_EXPANS = 3,
-        ADC_CH_RIGHTJOY_Y = 4,
-        ADC_CH_RIGHTJOY_X = 5,
+        ADC_CH_RIGHTJOY_Y = 5,    //mismatch to v1 PCB label
+        ADC_CH_RIGHTJOY_X = 4,    //mismatch to v1 PCB label
         ADC_CH_KNOB = 6,
         ADC_CH_VERSION = 7
     }
-    const ADC_CH_LEFTJOY_Y = 0
-    const ADC_CH_LEFTJOY_X = 1
+    const ADC_CH_LEFTJOY_Y = 1    //mismatch to v1 PCB label
+    const ADC_CH_LEFTJOY_X = 0    //mismatch to v1 PCB label
     const ADC_CH_SLIDE = 2
     const ADC_CH_EXPANS = 3
-    const ADC_CH_RIGHTJOY_Y = 4
-    const ADC_CH_RIGHTJOY_X = 5
+    const ADC_CH_RIGHTJOY_Y = 5    //mismatch to v1 PCB label
+    const ADC_CH_RIGHTJOY_X = 4    //mismatch to v1 PCB label
     const ADC_CH_KNOB = 6
     const ADC_CH_VERSION = 7
 
     //ADC channel commands, 4LSB set so internal reference is ON and A to D is ON
-    const ADC_REG_CH_LEFTJOY_Y = 0xCC   //swapped X and Y until PCB resolved
-    const ADC_REG_CH_LEFTJOY_X = 0x8C
+    const ADC_REG_CH_LEFTJOY_Y = 0x8C   
+    const ADC_REG_CH_LEFTJOY_X = 0xCC
     const ADC_REG_CH_SLIDE = 0x9C
     const ADC_REG_CH_EXPANS = 0xDC
-    const ADC_REG_CH_RIGHTJOY_Y = 0xEC   //swapped X and Y until PCB resolved
-    const ADC_REG_CH_RIGHTJOY_X = 0xAC
+    const ADC_REG_CH_RIGHTJOY_Y = 0xAC   
+    const ADC_REG_CH_RIGHTJOY_X = 0xEC
     const ADC_REG_CH_KNOB = 0xBC
     const ADC_REG_CH_VERSION = 0xFC
 
