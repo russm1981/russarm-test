@@ -503,7 +503,7 @@ namespace dojobot {
         debug(`I2C WRITE, ${ADC_ADDR}, ${readcmd}`)
         //Now read back in the value
         let ADCRead = pins.i2cReadNumber(ADC_ADDR, NumberFormat.UInt16BE, false)
-        debug((`I2C READ ${ADC_ADDR} = ${ADCRead}`)
+        debug(`I2C READ ${ADC_ADDR} = ${ADCRead}`)
 
         return ADCRead
     }
