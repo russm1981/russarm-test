@@ -271,8 +271,8 @@ namespace dojobot {
         //Falling edge at 1ms to 2ms
         //50Hz, so 20ms is one set of 4095 counts
         //1ms = 4095 / 20 = 204.75 -> equivalent to 180 degrees 
-        //Want 600ms (122 counts) for 0 degrees plus 1800ms for 180 degrees
-        off_time = (degrees * 10) + 122     
+        //Want 600ms (122 counts) for 0 degrees plus 1800ms (369) for 180 degrees
+        off_time = ((degrees * 4095 * 1.8)/(20 * 180)) + 122     
         //Write that to appropriate servo based on id
         ser_id = Math.max(0, Math.min(180, ser_id))
         
