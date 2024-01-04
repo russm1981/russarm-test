@@ -459,7 +459,6 @@ namespace dojobot {
     export function bot_input(id: number): number {
         // Read the ADC inputs and return
         //Ask for an ADC read
-        //serial.writeLine('bot input start')
         let readcmd
         switch (id) {
             case ADC_CH_LEFTJOY_Y:
@@ -498,12 +497,14 @@ namespace dojobot {
                 //Quit function and return an error
                 return -1
         }
+
         //write(ADC_ADDR, readcmd)
         pins.i2cWriteNumber(ADC_ADDR, readcmd, NumberFormat.UInt8LE, false)
         debug(`I2C WRITE, ${ADC_ADDR}, ${readcmd}`)
         //Now read back in the value
         let ADCRead = pins.i2cReadNumber(ADC_ADDR, NumberFormat.UInt16BE, false)
         debug((`I2C READ ${ADC_ADDR} = ${ADCRead}`)
+
         return ADCRead
     }
 
