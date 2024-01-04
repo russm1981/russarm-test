@@ -3,7 +3,8 @@
     "description": "",
     "dependencies": {
         "core": "*",
-        "iBIT": "github:emwta/pxt-ibit#v4.0.10"
+        "iBIT": "github:emwta/pxt-ibit#v4.0.10",
+        "ServoBit": "github:4tronix/servobit#v1.3.1"
     },
     "files": [
         "README.md",

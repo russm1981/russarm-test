@@ -11,7 +11,7 @@ DojoBot Functions
 //% groups=['Setup', 'LEDs', 'Motors', 'Inputs']
 namespace dojobot {
 
-    let _DEBUG: boolean = true
+    let _DEBUG: boolean = false
     const debug = (msg: string) => {
         if (_DEBUG === true) {
             serial.writeLine(msg)
@@ -81,12 +81,12 @@ namespace dojobot {
     const ADC_CH_VERSION = 7
 
     //ADC channel commands, 4LSB set so internal reference is ON and A to D is ON
-    const ADC_REG_CH_LEFTJOY_Y = 0x8C
-    const ADC_REG_CH_LEFTJOY_X = 0xCC
+    const ADC_REG_CH_LEFTJOY_Y = 0xCC   //swapped X and Y until PCB resolved
+    const ADC_REG_CH_LEFTJOY_X = 0x8C
     const ADC_REG_CH_SLIDE = 0x9C
     const ADC_REG_CH_EXPANS = 0xDC
-    const ADC_REG_CH_RIGHTJOY_Y = 0xAC
-    const ADC_REG_CH_RIGHTJOY_X = 0xEC
+    const ADC_REG_CH_RIGHTJOY_Y = 0xEC   //swapped X and Y until PCB resolved
+    const ADC_REG_CH_RIGHTJOY_X = 0xAC
     const ADC_REG_CH_KNOB = 0xBC
     const ADC_REG_CH_VERSION = 0xFC
 
@@ -146,7 +146,7 @@ namespace dojobot {
 
         prescale = (osc_clock / (4096 * update rate)) - 1
 
-        update_rate is the frequency required (200Hz default)
+        update_rate is the frequency required (200Hz default, when prescale is 1Eh = 30)
         servos recommended 40-200hz, but most use 50hz
 
         internal oscillator is 25mhz
@@ -154,7 +154,7 @@ namespace dojobot {
         prescale = 121d = 79h
         
     */
-    const pwm_prescale_servo = 0x79   //50hz for servo
+    const pwm_prescale_servo = 121    //50hz for servo
     const pwm_prescale_LED = 0x1D     //200hz for LEDs
 
     /*Output ON and OFF control registers
@@ -197,6 +197,11 @@ namespace dojobot {
         pins.i2cWriteBuffer(PWM_ADDRESS, buffer, false)
     } 
 
+    /**
+    * Set serial output for debug purposes
+    * @param debudEnabled as True (On) or False (Off)
+    */
+    //% block="Set debug output to $debugEnabled"
     export function setDebug(debugEnabled: boolean): void {
         _DEBUG = debugEnabled
     }
@@ -251,20 +256,34 @@ namespace dojobot {
         on_time = 0
         //Check position within bounds
         degrees = Math.max(0, Math.min(180, degrees))
+        
+        //In theory servo's require 1ms to 2ms pulses
+        //However, in reality needs adjusting by servo
+        //Some examples
+        //Sub-micro servo 580 to 2350     https://www.adafruit.com/product/2201
+        //Micro servo high torque metal  500 to 2600   https://www.adafruit.com/product/2307
+        //Standard servo - TowerPro SG - 5010  400 to 2400  https://www.adafruit.com/product/155
+        //Analog Feedback Servo  600 to 2500 https://www.adafruit.com/product/1404
+        //Micro servo - TowerPro SG - 92R:   500 to 2400 https://www.adafruit.com/product/169
+
+        //This application uses 600 to 2400 as a default   (you could use 750 to 2250 but this typically gives 135 degrees movement)
+        
         //Falling edge at 1ms to 2ms
         //50Hz, so 20ms is one set of 4095 counts
         //1ms = 4095 / 20 = 204.75 -> equivalent to 180 degrees 
-        //1 degree = 4095 / (20 * 180) = 4095 / 3600      
-        off_time = ((degrees * 4095) / 3600) + 205     //205 adds 1ms at end
+        //Want 600ms (122 counts) for 0 degrees plus 1800ms for 180 degrees
+        off_time = (degrees * 10) + 122     
         //Write that to appropriate servo based on id
         ser_id = Math.max(0, Math.min(180, ser_id))
         
+        debug(`setServo ${ser_id}`)
+
         const buffer = pins.createBuffer(2)
         const pinOffset = 4 * ser_id
         on_time = Math.max(0, Math.min(4095, on_time))
         off_time = Math.max(0, Math.min(4095, off_time))
 
-        debug(`setServo(${ser_id}, ${on_time}, ${off_time}, 0x40, pinOffset ${pinOffset})`)
+        debug(`On ${on_time}, Off ${off_time}, OS ${pinOffset}`)
 
         // Low byte of onStep
         write(pinOffset + PWM_REG_CH0_ON_L, on_time & 0xFF)
@@ -463,35 +482,35 @@ namespace dojobot {
         switch (id) {
             case ADC_CH_LEFTJOY_Y:
                 readcmd = ADC_REG_CH_LEFTJOY_Y
-                debug("LEFTY")
+                //debug("LEFTY")
                 break
             case ADC_CH_LEFTJOY_X:
                 readcmd = ADC_REG_CH_LEFTJOY_X
-                debug("LEFTX")
+                //debug("LEFTX")
                 break
             case ADC_CH_SLIDE:
                 readcmd = ADC_REG_CH_SLIDE
-                debug("SLIDE")
+                //debug("SLIDE")
                 break
             case ADC_CH_EXPANS:
                 readcmd = ADC_REG_CH_EXPANS
-                debug("EXPANS")
+                //debug("EXPANS")
                 break
             case ADC_CH_RIGHTJOY_Y:
                 readcmd = ADC_REG_CH_RIGHTJOY_Y
-                debug("RIGHTY")
+                //debug("RIGHTY")
                 break
             case ADC_CH_RIGHTJOY_X:
                 readcmd = ADC_REG_CH_RIGHTJOY_X
-                debug("RIGHTX")
+                //debug("RIGHTX")
                 break
             case ADC_CH_KNOB:
                 readcmd = ADC_REG_CH_KNOB
-                debug("KNOB")
+                //debug("KNOB")
                 break
             case ADC_CH_VERSION:
                 readcmd = ADC_REG_CH_VERSION
-                debug("VERSION")
+                //debug("VERSION")
                 break
             default:
                 //Quit function and return an error
