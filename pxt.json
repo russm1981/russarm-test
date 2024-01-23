@@ -1,5 +1,5 @@
 {
-    "name": "dojobot-block",
+    "name": "dojobot-block2",
     "description": "",
     "dependencies": {
         "core": "*",
@@ -8,8 +8,8 @@
     },
     "files": [
         "README.md",
-        "dojobot.ts",
-        "test.ts"
+        "test.ts",
+        "dojo.ts"
     ],
     "testFiles": [],
     "targetVersions": {
