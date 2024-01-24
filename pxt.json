@@ -1,5 +1,5 @@
 {
-    "name": "dojobot-block2",
+    "name": "dojo-block",
     "description": "",
     "dependencies": {
         "core": "*"

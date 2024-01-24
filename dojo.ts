@@ -5,8 +5,8 @@ Dojo Functions
 /**
 * Custom blocks
 */
-//% block="Dojo" weight=100 color=#0fbc11 icon="f17b"
-//% groups=['Setup', 'LEDs', 'Servos', 'Inputs']
+//% block="Dojo:Bot" weight=100 color=#0fbc11 icon="\uf11b" blockGap=8
+//% groups=['LEDs and Relay', 'Servos', 'Inputs']
 namespace dojo {
 
     let _DEBUG: boolean = false
@@ -16,35 +16,43 @@ namespace dojo {
         }
     }
 
-    //Configure user constants to match hardware
-    export class buttons {
-        A: number;
-        B: number;
-        C: number;
-    }
-
     const MAX_BRIGHTNESS = 0.5
 
     export enum LED_ID {
-        //% block="LED 1"
+        //% block="LED1"
         LED1 = 1,
-        //% block="LED 2"
+        //% block="LED2"
         LED2 = 2,
-        //% block="LED 3"
+        //% block="LED3"
         LED3 = 3
     }
 
+    export enum SERVO_POS {
+        //% block="Centre"
+        CEN = 90,
+        //% block="Max"
+        MAX = 180,
+        //% block="Min"
+        MIN = 0
+    }
+
     export enum SERVO_ID {
-        //% block="Left Servo"
+        //% block="Left"
         SERVO_LEFT = 6,
-        //% block="Right Servo"
+        //% block="Right"
         SERVO_RIGHT = 0,
-        //% block="Rotate Servo"
+        //% block="Rotate"
         SERVO_ROTATE = 1,
-        //% block="Jaw 1 Servo"
+        //% block="Jaw1"
         SERVO_JAW1 = 5,
-        //% block="Jaw 2 Servo"
+        //% block="Jaw2"
         SERVO_JAW2 = 4
+    }
+
+    export enum BUTTON {
+        A = 0,
+        B = 1,
+        C = 2
     }
 
     enum LED_CH {
@@ -67,6 +75,7 @@ namespace dojo {
         ORANGE = 0xFFA500,
         PURPLE = 0xa020f0,
         WHITE = 0xFFFFFF,
+        //% block="BLACK(OFF)"
         BLACK = 0x000000,
         OFF = 0x000000,
         BROWN = 0x964b00,
@@ -75,18 +84,18 @@ namespace dojo {
         BEIGE = 0xF5F5DC
     }
 
-    enum ADC_CH {
-        //% block="Left Joystick - Y"
+    export enum ADC_CH {
+        //% block="Left JoyS Y"
         ADC_CH_LEFTJOY_Y = 1,    //mismatch to v1 PCB label
-        //% block="Left Joystick - X"
+        //% block="Left JoyS X"
         ADC_CH_LEFTJOY_X = 0,    //mismatch to v1 PCB label
         //% block="Slider"
         ADC_CH_SLIDE = 2,
-        //% block="Expansion Input"
+        //% block="Expansion"
         ADC_CH_EXPANS = 3,
-        //% block="Right Joystick - Y"
+        //% block="Right JoyS Y"
         ADC_CH_RIGHTJOY_Y = 5,    //mismatch to v1 PCB label
-        //% block="Right Joystick - X"
+        //% block="Right JoyS X"
         ADC_CH_RIGHTJOY_X = 4,    //mismatch to v1 PCB label
         //% block="Knob"
         ADC_CH_KNOB = 6,
@@ -213,9 +222,10 @@ namespace dojo {
 
     /**
     * Set serial output for debug purposes
-    * @param debudEnabled as True (On) or False (Off)
+    * @param debugEnabled is true or false
     */
-    //% block="Set debug output to $debugEnabled"
+    //% block="Debug $debugEnabled"
+    //% debugEnabled.shadow=toggleOnOff
     export function setDebug(debugEnabled: boolean): void {
         _DEBUG = debugEnabled
     }
@@ -226,7 +236,7 @@ namespace dojo {
     * Initialise the dojo:bot and centre servos.  
     * No parameters, uses default values
     */
-    //% block="Initialise the dojo:bot"
+    //% block="Initialise"
     export function bot_init(): void {
         debug(`Init chip at address 0x40, 50Hz update rate`)
         const buf = pins.createBuffer(2)
@@ -251,39 +261,17 @@ namespace dojo {
     }
 
     /**
-        * Move all servos to centre position
-        */
-    //% block="Move all servos to central 90 degree position"
-    export function bot_servos_centre(): void {
-        bot_servo_position(SERVO_ID.SERVO_LEFT, 90);
-        bot_servo_position(SERVO_ID.SERVO_RIGHT, 90);
-        bot_servo_position(SERVO_ID.SERVO_ROTATE, 90);
-        bot_servo_position(SERVO_ID.SERVO_JAW1, 90);
-        bot_servo_position(SERVO_ID.SERVO_JAW2, 90);
-    }
-
-    /**
-    * Move all servos to minimum 0 degree position
+        * Move all servos to same position
+        * @param posn choose Min (0 degrees), Max (180 degrees) or Centre (90 degrees)
     */
-    //% block="Move all servos to minimum 0 degree position"
-    export function bot_servos_min(): void {
-        bot_servo_position(SERVO_ID.SERVO_LEFT, 0);
-        bot_servo_position(SERVO_ID.SERVO_RIGHT, 0);
-        bot_servo_position(SERVO_ID.SERVO_ROTATE, 0);
-        bot_servo_position(SERVO_ID.SERVO_JAW1, 0);
-        bot_servo_position(SERVO_ID.SERVO_JAW2, 0);
-    }
-
-    /**
-    * Move all servos to maximum 180 degree position
-    */
-    //% block="Move all servos to maximum 180 degree position"
-    export function bot_servos_max(): void {
-        bot_servo_position(SERVO_ID.SERVO_LEFT, 180);
-        bot_servo_position(SERVO_ID.SERVO_RIGHT, 180);
-        bot_servo_position(SERVO_ID.SERVO_ROTATE, 180);
-        bot_servo_position(SERVO_ID.SERVO_JAW1, 180);
-        bot_servo_position(SERVO_ID.SERVO_JAW2, 180);
+    //% block="All Servos %posn"
+    //% group="Servos"
+    export function bot_servos_all(posn: SERVO_POS): void {
+        bot_servo_position(SERVO_ID.SERVO_LEFT, posn);
+        bot_servo_position(SERVO_ID.SERVO_RIGHT, posn);
+        bot_servo_position(SERVO_ID.SERVO_ROTATE, posn);
+        bot_servo_position(SERVO_ID.SERVO_JAW1, posn);
+        bot_servo_position(SERVO_ID.SERVO_JAW2, posn);
     }
 
     /**
@@ -291,10 +279,12 @@ namespace dojo {
     * @param ser_id the servo ID, selected from list
     * @param degrees for chosen position (90 = centre)
     */
-    //% block="Move servo $ser_id to position $degrees"
-    //% degrees.min = 0
-    //% degrees.max = 180
-    //% degrees.defl = 90
+    //% block="Move servo %ser_id to position %degrees"
+    //% degrees.min=0
+    //% degrees.max=180
+    //% degrees.defl=90
+    //% degrees.fieldOptions.precision=1
+    //% group="Servos"
     export function bot_servo_position(ser_id: SERVO_ID, degrees: number): void {
         // Setup for standard, 180degree servo
         // Generate a pulse between 1ms and 2ms with 1.5ms being 90 degrees
@@ -350,16 +340,16 @@ namespace dojo {
 
     /**
     * Control the LEDs on DojoBot, with individual RGB values
-    * @param led_num is the number of the LED
+    * @param led_num is the LED chosen from list
     * @param red sets the red value from 0 to 255
     * @param green sets the green value from 0 to 255
     * @param blue sets the blue value from 0 to 255
     */
-    //% blockID = "device_bot_led"  block="Set LED $led_num to red $red, green $green, blue $blue"
-    //% led_num.min = 1  led_num.max = 3  led_num.fieldOptions.precision = 1
-    //% red.min = 1  red.max = 3  red.fieldOptions.precision = 1
-    //% green.min = 1  green.max = 3  green.fieldOptions.precision = 1
-    //% blue.min = 1  blue.max = 3  blue.fieldOptions.precision = 1
+    //% block="Set %led_num to red %red green %green blue %blue" inlineInputMode=inline
+    //% group="LEDs and Relay"
+    //% red.min=1  red.max=3  red.fieldOptions.precision=1
+    //% green.min=1  green.max=3  green.fieldOptions.precision=1
+    //% blue.min=1  blue.max=3  blue.fieldOptions.precision=1
     export function bot_led_RGB(led_num: LED_ID, red: number, green: number, blue: number): void {
 
         let red_num: number
@@ -496,32 +486,33 @@ namespace dojo {
     /**
     * Set LED to an RGB colour
     * @param led_num is the LED number selected
-    * @param colour is the RGB colour in format 0xRRGGBB
+    * @param colour is the RGB colour chosen from list
     */
-    //% block="Set LED $led_num to colour $colour"
-    export function bot_led_colour(led: LED_ID, clr: COLOUR): void {
-        let red = clr >> 16
-        let green = ((clr >> 8) & 0xFF)
-        let blue = (clr & 0xFF)
+    //% block="Set %led to colour %colr"
+    //% group="LEDs and Relay"
+    export function bot_led_colour(led: LED_ID, colr: COLOUR): void {
+        let red = colr >> 16
+        let green = ((colr >> 8) & 0xFF)
+        let blue = (colr & 0xFF)
         bot_led_RGB(led, red, green, blue)
     }
 
     /**
-    * Turn the relay ON (for electromagnet)
+    * Turn the relay ON or OFF (for electromagnet)
     */
-    //% block="Turn the relay ON (for electromagnet)"
-    export function bot_relay_on(): void {
-        pins.digitalWritePin(DigitalPin.P9, 1)
-        debug("R1")
-    }
-
-    /**
-    * Turn the relay OFF (for electromagnet)
-    */
-    //% block="Turn the relay OFF (for electromagnet)"
-    export function bot_relay_off(): void {
-        pins.digitalWritePin(DigitalPin.P9, 0)
-        debug("R0")
+    //% block="Relay %val"
+    //% group="LEDs and Relay"
+    //% val.shadow=toggleOnOff
+    export function bot_relay(val : boolean): void {
+        if(val == true) {
+            pins.digitalWritePin(DigitalPin.P9, 1)
+            debug("R1")
+        }
+        else
+        {
+            pins.digitalWritePin(DigitalPin.P9, 0)
+            debug("R0")
+        }
     }
 
     function processjoystick(input: number): number {
@@ -553,17 +544,21 @@ namespace dojo {
 
     /**
     * Read joystick, slider or control knob value
-    * @param id is the ADC Channel
-    * returns value 0 to 4096 (12 bit)
+    * @param id is the choice of input, chosen from list
+    * Joysticks return values -100 to +100 (0 is centre)
+    * Slider or Knob returns value 0 to 100
+    * Version returns PCB version number (-1 is unknown)
+    * Expansion returns 0 to 4095
     */
-    //% block="Read joystick, slider or control knob value"
-    export function bot_input(id: ADC_CH): number {
+    //% block="Read input %input_id"
+    //% group="Inputs"
+    export function bot_input(input_id: ADC_CH): number {
         // Read the ADC inputs and return
         //Ask for an ADC read
         let readcmd
         let ADCRead
         let returnval
-        switch (id) {
+        switch (input_id) {
             case ADC_CH.ADC_CH_LEFTJOY_Y:
                 readcmd = ADC_REG_CH_LEFTJOY_Y
                 pins.i2cWriteNumber(ADC_ADDR, readcmd, NumberFormat.UInt8LE, false)
@@ -635,15 +630,30 @@ namespace dojo {
     }
 
     /**
-    * Read the values of the buttons on the dojo PCB
+    * Read the values of the selected button
+    * @param button is the chosen button
+    * returned value is a number 1 (Pressed) or 0 (Released)
     */
-    //% block="Read the values of the buttons on the dojo PCB"
-    export function bot_buttons(): buttons {
+    //% block="Read button %but_id"
+    //% group="Inputs"
+    export function bot_buttons(but_id : BUTTON): number {
         // Read GPIO for the buttons A P5, B P11, C P8
-        let button_values = new buttons()
-        button_values.A = pins.digitalReadPin(DigitalPin.P5)
-        button_values.B = pins.digitalReadPin(DigitalPin.P11)
-        button_values.C = pins.digitalReadPin(DigitalPin.P8)
-        return button_values
+        let button_val : number = 0
+        if (but_id == BUTTON.A) {
+            button_val = pins.digitalReadPin(DigitalPin.P5)
+        }
+        else if (but_id == BUTTON.B) {
+            button_val = pins.digitalReadPin(DigitalPin.P11)
+        }
+        else if (but_id == BUTTON.C) {
+            button_val = pins.digitalReadPin(DigitalPin.P8)
+        }
+        if(button_val == 0){
+            button_val = 1
+        }
+        else {
+            button_val = 0
+        }
+        return button_val
     }
 }
