@@ -18,6 +18,30 @@ namespace dojo {
 
     const MAX_BRIGHTNESS = 0.5
 
+    export class servo_info {
+        position: number = 90;
+        min: number = 0;
+        max: number = 180
+    }
+
+    export class servo_position {
+        left: number = 90;
+        right: number = 90;
+        rotate: number = 90;
+        jaw1: number = 90;
+        jaw2: number = 90;
+    }
+
+    export let servo_left : servo_info;
+    export let servo_right: servo_info;
+    export let servo_rotate: servo_info;
+    export let servo_jaw1: servo_info;
+    export let servo_jaw2: servo_info;
+
+    export let positionA: servo_position
+    export let positionB: servo_position
+    export let positionC: servo_position
+
     export enum LED_ID {
         //% block="LED1"
         LED1 = 1,
@@ -25,6 +49,12 @@ namespace dojo {
         LED2 = 2,
         //% block="LED3"
         LED3 = 3
+    }
+
+    export enum POSITION_ID {
+        A = 1,
+        B = 2,
+        C = 3
     }
 
     export enum SERVO_POS {
@@ -46,7 +76,22 @@ namespace dojo {
         //% block="Jaw1"
         SERVO_JAW1 = 5,
         //% block="Jaw2"
-        SERVO_JAW2 = 4
+        SERVO_JAW2 = 4,
+        //% block="ALL"
+        SERVO_ALL = 255
+    }
+
+    export enum SERVO_ID2 {
+        //% block="Left"
+        SERVO_LEFT = 6,
+        //% block="Right"
+        SERVO_RIGHT = 0,
+        //% block="Rotate"
+        SERVO_ROTATE = 1,
+        //% block="Jaw1"
+        SERVO_JAW1 = 5,
+        //% block="Jaw2"
+        SERVO_JAW2 = 4,
     }
 
     export enum BUTTON {
@@ -232,6 +277,28 @@ namespace dojo {
 
     //DOJO:BOT SPECIFIC CODE
 
+    export function bot_joy_to_move(inputval : number): number {
+        let amount_to_move = 0;
+        if (inputval > 3500) {
+            amount_to_move = -3
+        } else if (inputval > 3000) {
+            amount_to_move = -2
+        } else if (inputval > 2300) {
+            amount_to_move = -1
+        } else {
+            if (inputval < 550) {
+                amount_to_move = 3
+            } else if (inputval < 1100) {
+                amount_to_move = 2
+            } else if (inputval < 2100) {
+                amount_to_move = 1
+            } else {
+                amount_to_move = 0
+            }
+        }
+        return amount_to_move;
+    }
+
     /**
     * Initialise the dojo:bot and centre servos.  
     * No parameters, uses default values
@@ -261,31 +328,197 @@ namespace dojo {
     }
 
     /**
-        * Move all servos to same position
-        * @param posn choose Min (0 degrees), Max (180 degrees) or Centre (90 degrees)
-    */
-    //% block="All Servos %posn"
+            * Set the limits for the position of the servo
+            * @param ser_id the servo ID, selected from list
+            * @param min is the minimum position (must be 0 - 90 degrees)
+            * @param max is the maximum position (must be 90 - 180 degrees)
+            */
+    //% block="Set limits %ser_id min %min to max %max" inlineInputMode=inline
     //% group="Servos"
-    export function bot_servos_all(posn: SERVO_POS): void {
-        bot_servo_position(SERVO_ID.SERVO_LEFT, posn);
-        bot_servo_position(SERVO_ID.SERVO_RIGHT, posn);
-        bot_servo_position(SERVO_ID.SERVO_ROTATE, posn);
-        bot_servo_position(SERVO_ID.SERVO_JAW1, posn);
-        bot_servo_position(SERVO_ID.SERVO_JAW2, posn);
+    //% min.min=0  min.max=90  min.defl=0 min.fieldOptions.precision=1
+    //% max.min=90  max.max=180  max.defl=180 max.fieldOptions.precision=1
+    export function bot_servo_set_limits(ser_id: SERVO_ID, min:number, max:number): void {
+        min = Math.constrain(min, 0, 90)
+        max = Math.constrain(min, 90, 180)
+        switch (ser_id) {
+            case SERVO_ID.SERVO_LEFT:
+                servo_left.min = min
+                servo_left.max = max
+                break
+            case SERVO_ID.SERVO_RIGHT:
+                servo_right.min = min
+                servo_right.max = max
+                break
+            case SERVO_ID.SERVO_ROTATE:
+                servo_rotate.min = min
+                servo_rotate.max = max
+                break
+            case SERVO_ID.SERVO_JAW1:
+                servo_jaw1.min = min
+                servo_jaw1.max = max
+                break
+            case SERVO_ID.SERVO_JAW2:
+                servo_jaw2.min = min
+                servo_jaw2.max = max
+                break
+        }
+    }
+
+    /**
+        * Return the current position of the servo
+        * @param ser_id the servo ID, selected from list
+        * value is in degrees e.g. 90.3
+        */
+    //% block="Get servo position %ser_id"
+    //% group="Servos"
+    export function bot_servo_get_position(ser_id: SERVO_ID): number {
+        let val : number
+        switch (ser_id) {
+            case SERVO_ID.SERVO_LEFT:
+                val = servo_left.position
+                break
+            case SERVO_ID.SERVO_RIGHT:
+                val = servo_right.position
+                break
+            case SERVO_ID.SERVO_ROTATE:
+                val = servo_rotate.position
+                break
+            case SERVO_ID.SERVO_JAW1:
+                val = servo_jaw1.position
+                break
+            case SERVO_ID.SERVO_JAW2:
+                val = servo_jaw2.position
+                break
+        }
+        return val
+    }
+
+    /**
+        * Store current position of robot 
+        * @param position, selected from list
+        * Stores Left, Right, Rotate, Jaw1, Jaw2
+        */
+    //% block="Store position %position"
+    //% group="Servos"
+    export function bot_servo_store_position(position : POSITION_ID): void {
+        switch (position) {
+            case POSITION_ID.A:
+                positionA.left = servo_left.position
+                positionA.right = servo_right.position
+                positionA.rotate = servo_rotate.position
+                positionA.jaw1 = servo_jaw1.position
+                positionA.jaw2 = servo_jaw2.position
+                break
+            case POSITION_ID.B:
+                positionB.left = servo_left.position
+                positionB.right = servo_right.position
+                positionB.rotate = servo_rotate.position
+                positionB.jaw1 = servo_jaw1.position
+                positionB.jaw2 = servo_jaw2.position
+                break
+            case POSITION_ID.C:
+                positionC.left = servo_left.position
+                positionC.right = servo_right.position
+                positionC.rotate = servo_rotate.position
+                positionC.jaw1 = servo_jaw1.position
+                positionC.jaw2 = servo_jaw2.position
+                break
+        }    
+    }
+
+    /**
+        * Move robot to a stored position 
+        * @param position selected from list
+        * Moves Left, Right, Rotate BUT NOT Jaw1, Jaw2
+        */
+    //% block="Go to position %position"
+    //% group="Servos"
+    export function bot_servo_go_position(position: POSITION_ID): void {
+        switch (position) {
+            case POSITION_ID.A:
+                bot_servo_position(SERVO_ID.SERVO_LEFT, positionA.left)
+                bot_servo_position(SERVO_ID.SERVO_RIGHT, positionA.right)
+                bot_servo_position(SERVO_ID.SERVO_ROTATE, positionA.rotate)
+                break
+            case POSITION_ID.B:
+                bot_servo_position(SERVO_ID.SERVO_LEFT, positionB.left)
+                bot_servo_position(SERVO_ID.SERVO_RIGHT, positionB.right)
+                bot_servo_position(SERVO_ID.SERVO_ROTATE, positionB.rotate)
+                break
+            case POSITION_ID.C:
+                bot_servo_position(SERVO_ID.SERVO_LEFT, positionC.left)
+                bot_servo_position(SERVO_ID.SERVO_RIGHT, positionC.right)
+                bot_servo_position(SERVO_ID.SERVO_ROTATE, positionC.rotate)
+                break
+        }
+    }
+
+    /**
+        * Move a servo by a number of degrees
+        * @param ser_id the servo ID, selected from list
+        * @param degrees_rel from -20 to +20 degrees
+        * Single servo will only move within its min-max limits.  ALL includes this
+        */
+    //% block="Move servo %ser_id by %degrees"
+    //% degrees_rel.min=-20
+    //% degrees_rel.max=20
+    //% degrees_rel.defl=0
+    //% degrees_rel.fieldOptions.precision=0.1
+    //% group="Servos"
+    export function bot_servo_position_rel(ser_id: SERVO_ID, degrees_rel: number): void {
+        degrees_rel = Math.constrain(degrees_rel, -20, 20)
+        switch (ser_id) {
+            case SERVO_ID.SERVO_ALL:
+                bot_servo_internal(SERVO_ID.SERVO_LEFT, servo_left.position + degrees_rel, true);
+                bot_servo_internal(SERVO_ID.SERVO_RIGHT, servo_right.position + degrees_rel, true);
+                bot_servo_internal(SERVO_ID.SERVO_ROTATE, servo_rotate.position + degrees_rel, true);
+                bot_servo_internal(SERVO_ID.SERVO_JAW1, servo_jaw1.position + degrees_rel, true);
+                bot_servo_internal(SERVO_ID.SERVO_JAW2, servo_jaw2.position + degrees_rel, true);
+                break
+            case SERVO_ID.SERVO_LEFT:
+                bot_servo_internal(SERVO_ID.SERVO_LEFT, servo_left.position + degrees_rel, true);
+                break
+            case SERVO_ID.SERVO_RIGHT:
+                bot_servo_internal(SERVO_ID.SERVO_RIGHT, servo_right.position + degrees_rel, true);
+                break
+            case SERVO_ID.SERVO_ROTATE:
+                bot_servo_internal(SERVO_ID.SERVO_ROTATE, servo_rotate.position + degrees_rel, true);
+                break
+            case SERVO_ID.SERVO_JAW1:
+                bot_servo_internal(SERVO_ID.SERVO_JAW1, servo_jaw1.position + degrees_rel, true);
+                break
+            case SERVO_ID.SERVO_JAW2:
+                bot_servo_internal(SERVO_ID.SERVO_JAW2, servo_jaw2.position + degrees_rel, true);
+                break
+        }
     }
 
     /**
     * Move a servo to a position
     * @param ser_id the servo ID, selected from list
     * @param degrees for chosen position (90 = centre)
+    * Single servo will only move within its min-max limits.  ALL ignores this
     */
     //% block="Move servo %ser_id to position %degrees"
     //% degrees.min=0
     //% degrees.max=180
     //% degrees.defl=90
-    //% degrees.fieldOptions.precision=1
+    //% degrees.fieldOptions.precision=0.1
     //% group="Servos"
     export function bot_servo_position(ser_id: SERVO_ID, degrees: number): void {
+        if (ser_id == SERVO_ID.SERVO_ALL) {
+            bot_servo_internal(SERVO_ID.SERVO_LEFT, degrees, false);
+            bot_servo_internal(SERVO_ID.SERVO_RIGHT, degrees, false);
+            bot_servo_internal(SERVO_ID.SERVO_ROTATE, degrees, false);
+            bot_servo_internal(SERVO_ID.SERVO_JAW1, degrees, false);
+            bot_servo_internal(SERVO_ID.SERVO_JAW2, degrees, false);
+        }    
+        else{
+            bot_servo_internal(ser_id, degrees, true);
+        }
+    }
+    
+    function bot_servo_internal(ser_id: SERVO_ID, degrees: number, limits: boolean): void {
         // Setup for standard, 180degree servo
         // Generate a pulse between 1ms and 2ms with 1.5ms being 90 degrees
         // 0 degrees = 1ms, 180 degrees = 2ms
@@ -295,6 +528,38 @@ namespace dojo {
         //Rising edge always at 0
         on_time = 0
         //Check position within bounds
+        switch (ser_id) {
+            case SERVO_ID.SERVO_LEFT:
+                if(limits == true) {
+                    degrees = Math.constrain(degrees, servo_left.min, servo_left.max)
+                }
+                servo_left.position = degrees
+                break
+            case SERVO_ID.SERVO_RIGHT:
+                if (limits == true) {
+                    degrees = Math.constrain(degrees, servo_right.min, servo_right.max)
+                }
+                servo_right.position = degrees
+                break
+            case SERVO_ID.SERVO_ROTATE:
+                if (limits == true) {
+                    degrees = Math.constrain(degrees, servo_rotate.min, servo_rotate.max)
+                }
+                servo_rotate.position = degrees
+                break
+            case SERVO_ID.SERVO_JAW1:
+                if (limits == true) {
+                    degrees = Math.constrain(degrees, servo_jaw1.min, servo_jaw1.max)
+                }
+                servo_jaw1.position = degrees
+                break
+            case SERVO_ID.SERVO_JAW2:
+                if (limits == true) {
+                    degrees = Math.constrain(degrees, servo_jaw2.min, servo_jaw2.max)
+                }
+                servo_jaw2.position = degrees
+                break
+        }
         degrees = Math.max(0, Math.min(180, degrees))
 
         //In theory servo's require 1ms to 2ms pulses
@@ -347,9 +612,9 @@ namespace dojo {
     */
     //% block="Set %led_num to red %red green %green blue %blue" inlineInputMode=inline
     //% group="LEDs and Relay"
-    //% red.min=1  red.max=3  red.fieldOptions.precision=1
-    //% green.min=1  green.max=3  green.fieldOptions.precision=1
-    //% blue.min=1  blue.max=3  blue.fieldOptions.precision=1
+    //% red.min=1  red.max=255  red.fieldOptions.precision=1
+    //% green.min=1  green.max=255  green.fieldOptions.precision=1
+    //% blue.min=1  blue.max=255  blue.fieldOptions.precision=1
     export function bot_led_RGB(led_num: LED_ID, red: number, green: number, blue: number): void {
 
         let red_num: number

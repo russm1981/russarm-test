@@ -1,5 +1,5 @@
 {
-    "name": "dojo-block",
+    "name": "dojo-block-READONLY",
     "description": "",
     "dependencies": {
         "core": "*"
